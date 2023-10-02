@@ -21,7 +21,8 @@ def DiffuseHorizontalIrrad(ds, solar_position, clearsky_model, influx):
     # Lauret et al. (2013):http://dx.doi.org/10.1016/j.renene.2012.01.049
 
     sinaltitude = sin(solar_position["altitude"])
-    influx_toa = ds["influx_toa"]
+    #influx_toa = ds["influx_toa"]
+    influx_toa = solar_position["atmospheric_insolation"] #added - cmip # for cmip it is an estimation of influx toa
 
     if clearsky_model is None:
         clearsky_model = (
@@ -83,7 +84,8 @@ def TiltedDiffuseIrrad(ds, solar_position, surface_orientation, direct, diffuse)
     # Hay-Davies Model
 
     sinaltitude = sin(solar_position["altitude"])
-    influx_toa = ds["influx_toa"]
+    #influx_toa = ds["influx_toa"]
+    influx_toa = solar_position["atmospheric_insolation"] #add cmip # for cmip it is an estimation of influx toa
 
     cosincidence = surface_orientation["cosincidence"]
     surface_slope = surface_orientation["slope"]
@@ -199,7 +201,8 @@ def TiltedIrradiation(
         The desired irradiation quantity on the tilted surface.
     """
 
-    influx_toa = ds["influx_toa"]
+    #influx_toa = ds["influx_toa"]
+    influx_toa = solar_position["atmospheric_insolation"] #add cmip # for cmip it is an estimation of influx toa
 
     def clip(influx, influx_max):
         # use .data in clip due to dask-xarray incompatibilities

@@ -134,6 +134,11 @@ class Cutout:
         gebco_path: str
             Path to find the gebco netcdf file. Only necessary when including
             the gebco module.
+        esgf_params: dict
+            Parameters to be used in search on the ESGF database.
+        model: str
+            The ESGF search parameters can also be specified in the cmip.yml file,
+            then model correspond to the name of the model specifed in the cmip.yml file.
         parallel : bool, default False
             Whether to open dataset in parallel mode. Take effect for all
             xr.open_mfdataset usages.
@@ -151,6 +156,8 @@ class Cutout:
         path = Path(path).with_suffix(".nc")
         chunks = cutoutparams.pop("chunks", {"time": 100})
         storable_chunks = {f"chunksize_{k}": v for k, v in (chunks or {}).items()}
+
+        self.esgf_params = cutoutparams.pop("esgf_params", None) # added cmip
 
         # Backward compatibility for xs, ys, months and years
         if {"xs", "ys"}.intersection(cutoutparams):
@@ -209,7 +216,8 @@ class Cutout:
                 ) from exc
 
             # TODO: check for dx, dy, x, y fine with module requirements
-            coords = get_coords(x, y, time, **cutoutparams)
+            #coords = get_coords(x, y, time, **cutoutparams)
+            coords = get_coords(x, y, time, module, **cutoutparams) # added - cmip
 
             attrs = {
                 "module": module,

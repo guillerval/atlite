@@ -181,12 +181,15 @@ def cutout_prepare(
         attrs = non_bool_dict(cutout.data.attrs)
         attrs.update(ds.attrs)
 
+        cutout.data = cutout.data.drop_vars(["lat","lon"]) # added cmip
+        cutout.data = cutout.data.assign_coords(time=ds.time,y=ds.y,x=ds.x,lat=ds.lat,lon=ds.lon) # added cmip
+        cutout.data = cutout.data.assign_coords(lon=ds.x, lat=ds.y) # added cmip
+        ds = cutout.data.merge(ds[missing_vars.values]).assign_attrs(**attrs)
+
         # Add optional compression to the newly prepared features
         if compression:
             for v in missing_vars:
                 ds[v].encoding.update(compression)
-
-        ds = cutout.data.merge(ds[missing_vars.values]).assign_attrs(**attrs)
 
         # write data to tmp file, copy it to original data, this is much safer
         # than appending variables

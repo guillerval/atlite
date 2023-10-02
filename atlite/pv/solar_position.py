@@ -54,6 +54,7 @@ def SolarPosition(ds, time_shift="0H"):
     rvs = {
         "solar_azimuth",
         "solar_altitude",
+        "atmospheric_insolation", # added cmip
     }
 
     if rvs.issubset(set(ds.data_vars)):
@@ -117,7 +118,20 @@ def SolarPosition(ds, time_shift="0H"):
     az.attrs["time shift"] = f"{time_shift}"
     az.attrs["units"] = "rad"
 
-    vars = {da.name: da for da in [alt, az]}
+    # added - cmip ## added to calculate influx toa for CMIP. Obtained from previous version of atlite
+    if "influx_toa" in ds:
+        atmospheric_insolation = ds["influx_toa"].rename("atmospheric_insolation")
+    else:
+        # [3]
+        atmospheric_insolation = (1366.1 * (1 + 0.033 * cos(g)) * sin(alt)).rename(
+            "atmospheric_insolation"
+        )
+        atmospheric_insolation.attrs["time shift"] = f"{time_shift}"
+        atmospheric_insolation.attrs["units"] = "W m**-2"
+    ###############
+
+    #vars = {da.name: da for da in [alt, az]}
+    vars = {da.name: da for da in [alt, az, atmospheric_insolation]} # added - cmip
     solar_position = xr.Dataset(vars)
 
     return solar_position

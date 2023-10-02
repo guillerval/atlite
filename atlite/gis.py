@@ -36,7 +36,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-def get_coords(x, y, time, dx=0.25, dy=0.25, dt="h", **kwargs):
+def get_coords(x, y, time, module, dx=0.25, dy=0.25, dt="h", **kwargs):
     """
     Create an cutout coordinate system on the basis of slices and step sizes.
 
@@ -65,11 +65,21 @@ def get_coords(x, y, time, dx=0.25, dy=0.25, dt="h", **kwargs):
     x = slice(*sorted([x.start, x.stop]))
     y = slice(*sorted([y.start, y.stop]))
 
+    # added - cmip
+    if "cmip" in module:
+        start = "1980"
+        end = "2101"
+    else:
+        start = "1979"
+        end = "now"
+    # cmip
+
     ds = xr.Dataset(
         {
             "x": np.round(np.arange(-180, 180, dx), 9),
             "y": np.round(np.arange(-90, 90, dy), 9),
-            "time": pd.date_range(start="1940", end="now", freq=dt),
+            #"time": pd.date_range(start="1959", end="now", freq=dt),
+            "time": pd.date_range(start=start, end=end, freq=dt), # added - cmip
         }
     )
     ds = ds.assign_coords(lon=ds.coords["x"], lat=ds.coords["y"])

@@ -57,29 +57,52 @@ def extrapolate_wind_speed(ds, to_height, from_height=None):
     if to_name in ds:
         return ds[to_name]
 
-    if from_height is None:
-        # Determine closest height to to_name
-        heights = np.asarray([int(s[3:-1]) for s in ds if re.match(r"wnd\d+m", s)])
+    if "cmip" in ds.attrs["module"]:
 
-        if len(heights) == 0:
-            raise AssertionError("Wind speed is not in dataset")
+        from wrf import interplevel
+        import xarray as xr
+        
+        lev = to_height
+        wspd = ds.wnd
+        z = ds.z
 
-        from_height = heights[np.argmin(np.abs(heights - to_height))]
+        aux = interplevel(wspd, np.log(z), np.log(lev), meta=False)
 
-    from_name = "wnd{h:0d}m".format(h=int(from_height))
+        wnd_spd = xr.DataArray(aux, \
+                coords = [wspd.time, wspd.y, wspd.x], dims = ['time','y','x'], name=to_name)
 
-    # Wind speed extrapolation
-    wnd_spd = ds[from_name] * (
-        np.log(to_height / ds["roughness"]) / np.log(from_height / ds["roughness"])
-    )
+        wnd_spd.attrs.update(
+            {
+                "long name": "extrapolated {ht} m wind speed using pressure level "
+                "".format(ht=to_height),
+                "units": "m s**-1",
+            }
+        )
+    else:
 
-    wnd_spd.attrs.update(
-        {
-            "long name": "extrapolated {ht} m wind speed using logarithmic "
-            "method with roughness and {hf} m wind speed"
-            "".format(ht=to_height, hf=from_height),
-            "units": "m s**-1",
-        }
-    )
+        if from_height is None:
+            # Determine closest height to to_name
+            heights = np.asarray([int(s[3:-1]) for s in ds if re.match(r"wnd\d+m", s)])
+
+            if len(heights) == 0:
+                raise AssertionError("Wind speed is not in dataset")
+
+            from_height = heights[np.argmin(np.abs(heights - to_height))]
+
+        from_name = "wnd{h:0d}m".format(h=int(from_height))
+
+        # Wind speed extrapolation
+        wnd_spd = ds[from_name] * (
+            np.log(to_height / ds["roughness"]) / np.log(from_height / ds["roughness"])
+        )
+
+        wnd_spd.attrs.update(
+            {
+                "long name": "extrapolated {ht} m wind speed using logarithmic "
+                "method with roughness and {hf} m wind speed"
+                "".format(ht=to_height, hf=from_height),
+                "units": "m s**-1",
+            }
+        )
 
     return wnd_spd.rename(to_name)

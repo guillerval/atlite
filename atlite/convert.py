@@ -124,7 +124,14 @@ def convert_and_aggregate(
         if capacity_factor:
             res = da.mean("time").rename("capacity factor")
             res.attrs["units"] = "p.u."
-            return maybe_progressbar(res, show_progress, **dask_kwargs)
+            #return maybe_progressbar(res, show_progress, **dask_kwargs) 
+            return maybe_progressbar( # added cmip
+                res, show_progress, **dask_kwargs
+            ), maybe_progressbar(
+                da.assign_attrs({"units": "p.u."}).rename("capacity factor"),
+                show_progress,
+                **dask_kwargs,
+            )
         else:
             res = da.sum("time", keep_attrs=True)
             return maybe_progressbar(res, show_progress, **dask_kwargs)
@@ -455,10 +462,19 @@ def solar_thermal(
 
 
 # wind
-def convert_wind(ds, turbine):
+def convert_wind(ds2, turbine):
     """
     Convert wind speeds for turbine to wind energy generation.
     """
+    # added - cmip
+    varlist = ["wnd","z"]
+    ds = ds2.drop_vars([var for var in ds2.data_vars if var not in varlist])
+    ds = ds.where(
+        ds.wnd.dropna(dim="time", how="all")
+        .dropna(dim="x", how="all")
+        .dropna(dim="y", how="all")
+    )
+    #########
     V, POW, hub_height, P = itemgetter("V", "POW", "hub_height", "P")(turbine)
 
     wnd_hub = windm.extrapolate_wind_speed(ds, to_height=hub_height)
@@ -605,11 +621,30 @@ def irradiation(
         **params,
     )
 
-
 # solar PV
 def convert_pv(
-    ds, panel, orientation, tracking, trigon_model="simple", clearsky_model="simple"
+    ds2, panel, orientation, tracking, trigon_model="simple", clearsky_model="simple"
 ):
+    # added - cmip
+    varlist = ["influx","outflux","temperature"]
+    ds = ds2.drop_vars([var for var in ds2.data_vars if var not in varlist])
+
+    ds_aux = ds.where(
+        ds.influx.dropna(dim="time", how="all")
+        .dropna(dim="x", how="all")
+        .dropna(dim="y", how="all")
+    )
+    ds = ds.where(
+        ds.temperature.dropna(dim="time", how="all")
+        .dropna(dim="x", how="all")
+        .dropna(dim="y", how="all")
+    )
+
+    time = ds_aux.time
+    ds = ds.interp(time=time)
+
+    ds["influx"].values = ds_aux["influx"].values
+    #########
     solar_position = SolarPosition(ds)
     surface_orientation = SurfaceOrientation(ds, solar_position, orientation, tracking)
     irradiation = TiltedIrradiation(
