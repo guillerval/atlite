@@ -472,7 +472,7 @@ def convert_wind(ds2, turbine):
     ds = ds.where(
         ds.wnd.dropna(dim="time", how="all")
         .dropna(dim="x", how="all")
-        .dropna(dim="y", how="all")
+        .dropna(dim="y", how="all") >= 0
     )
     #########
     V, POW, hub_height, P = itemgetter("V", "POW", "hub_height", "P")(turbine)
@@ -632,12 +632,12 @@ def convert_pv(
     ds_aux = ds.where(
         ds.influx.dropna(dim="time", how="all")
         .dropna(dim="x", how="all")
-        .dropna(dim="y", how="all")
+        .dropna(dim="y", how="all") >= 0
     )
     ds = ds.where(
         ds.temperature.dropna(dim="time", how="all")
         .dropna(dim="x", how="all")
-        .dropna(dim="y", how="all")
+        .dropna(dim="y", how="all") >= 0
     )
 
     time = ds_aux.time
