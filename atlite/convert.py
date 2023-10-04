@@ -626,7 +626,7 @@ def convert_pv(
     ds2, panel, orientation, tracking, trigon_model="simple", clearsky_model="simple"
 ):
     # added - cmip
-    varlist = ["influx","outflux","temperature"]
+    varlist = ["influx","outflux","temperature","humidity","pressure"]
     ds = ds2.drop_vars([var for var in ds2.data_vars if var not in varlist])
 
     ds_aux = ds.where(
@@ -644,6 +644,9 @@ def convert_pv(
     ds = ds.interp(time=time)
 
     ds["influx"].values = ds_aux["influx"].values
+    ds["outflux"].values = ds_aux["outflux"].values
+
+    ds = ds.unify_chunks()
     #########
     solar_position = SolarPosition(ds)
     surface_orientation = SurfaceOrientation(ds, solar_position, orientation, tracking)
