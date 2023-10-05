@@ -33,8 +33,9 @@ features = {
     # "wind": ["wnd", "z", "ua", "va", "ta", "hus", "wnd_azimuth"],
     "wind": ["wnd", "z", "ua", "va", "ta", "hus", "pa"],
     "influx": ["influx", "outflux"],
+    "wind10m": ["ua10m", "va10m", "wnd10m"],
     # "temperature": ["temperature", "humidity", "pressure"],
-    "temperature": ["temperature","humidity", "pressure"],
+    "surface": ["temperature","humidity", "pressure"],
     # "runoff": ["runoff"], # removing because focus on wind
 }
 crs = 4326
@@ -250,7 +251,7 @@ def get_data_wind(esgf_params_all, cutout, **retrieval_params):
     return ds
 
 
-def get_data_temperature(esgf_params_all, cutout, **retrieval_params):
+def get_data_surface(esgf_params_all, cutout, **retrieval_params):
     """Get temperature and humidity for given retrieval parameters."""
 
     esgf_params = {
@@ -308,6 +309,7 @@ def get_data_temperature(esgf_params_all, cutout, **retrieval_params):
     ds["pressure"] = ps.ps
     ds["humidity"] = qs.huss
 
+    ds = ds.drop_vars("height")
     for variable in list(ds.keys()):
         if variable not in ["temperature", "humidity", "pressure"]:
             ds = ds.drop_vars(variable)
@@ -318,6 +320,66 @@ def get_data_temperature(esgf_params_all, cutout, **retrieval_params):
 
     return ds
 
+
+def get_data_wind10m(esgf_params_all, cutout, **retrieval_params):
+    """Get temperature and humidity for given retrieval parameters."""
+
+    esgf_params = {
+        "source_id": esgf_params_all["source_id"],
+        "variant_label": esgf_params_all["variant_label"],
+        "experiment_id": esgf_params_all["experiment_id"],
+        "project": esgf_params_all["project"],
+        "frequency": esgf_params_all["frequency_wnd10m"],
+    }
+
+    attr = esgf_params
+
+    coords = cutout.coords
+    bounds = cutout.bounds
+    times = coords["time"].to_index()  # to slice the time coords
+
+    # starting and ending dates and hours
+    time_start = datetime.datetime(
+        times[0].year, times[0].month, times[0].day, times[0].hour
+    )
+    time_end = datetime.datetime(
+        times[-1].year, times[-1].month, times[-1].day, times[-1].hour
+    )
+
+    
+    # obtaining ua at surface level
+    duas = retrieve_data(esgf_params, coords, variables=["uas"], **retrieval_params)
+    uas = _rename_and_fix_coords(cutout, duas)
+    uas = uas.sel(
+        time=slice(time_start, time_end),
+        x=slice(bounds[0], bounds[2]),
+        y=slice(bounds[1], bounds[3]),
+    )
+
+    # obtaining va at surface level
+    dvas = retrieve_data(esgf_params, coords, variables=["vas"], **retrieval_params)
+    vas = _rename_and_fix_coords(cutout, dvas)
+    vas = vas.sel(
+        time=slice(time_start, time_end),
+        x=slice(bounds[0], bounds[2]),
+        y=slice(bounds[1], bounds[3]),
+    )
+
+    wnd10m = np.sqrt(uas.uas * uas.uas + vas.vas * vas.vas)
+    ds = uas
+    ds = ds.rename({"uas":"ua10m"})
+    ds["va10m"] = vas.vas
+    ds["wnd10m"] = wnd10m
+
+    ds = ds.drop_vars("height")
+    for variable in list(ds.keys()):
+        if variable not in ["va10m", "ua10m", "wnd10m"]:
+            ds = ds.drop_vars(variable)
+    attr["variables"] = ["ua10m", "va10m", "wnd10m"]
+    attr.pop("variable")
+    ds.attrs = attr
+
+    return ds
 
 def _year_in_file(time_range, years):
     """
